@@ -19,7 +19,10 @@ import sys
 
 # Third-party libraries
 import numpy as np
+from collections import defaultdict
 
+output_activations = {'train':defaultdict(list),'eval':defaultdict(list)}
+train_or_eval = ""
 
 #### Define the quadratic and cross-entropy cost functions
 
@@ -39,10 +42,43 @@ class QuadraticCost(object):
         return (a-y) * sigmoid_prime(z)
 
 
+
+class LogLikelihoodCost(object):
+    """In this case, y is an integer that refers to the correct digit value
+    """
+    @staticmethod
+    def fn(a, y):
+        global output_activations
+        j = np.nonzero(y == 1)
+        #print "a:\n",a[j[0][0]]
+        #print "y:\n",y
+        #print "j[0][0]:\n",j[0][0]
+        #print "look here",type(j[0][0]),j[0][0]
+        #return -np.log(a[j[0][0]])
+        if train_or_eval == "train":
+            output_activations['train'][j[0][0]].append(a[j[0][0]].tolist())
+        elif train_or_eval == "eval":
+            output_activations['eval'][j[0][0]].append(a[j[0][0]].tolist())
+        else:
+            print "ERROR"
+            exit(0)
+        #print -np.log(a[j[0][0]])
+        #print np.sum(np.nan_to_num(-np.log(a[j[0][0]])))
+        #return np.sum(np.nan_to_num(-np.log(a[j[0][0]])))
+        return np.sum(np.nan_to_num(-np.log(a[j[0][0]])))
+
+    """In this case, y is an integer that refers to the correct digit value
+    """
+    @staticmethod
+    def delta(z, a, y):
+        return (a-y)
+
+
 class CrossEntropyCost(object):
 
     @staticmethod
     def fn(a, y):
+        global output_activations
         """Return the cost associated with an output ``a`` and desired output
         ``y``.  Note that np.nan_to_num is used to ensure numerical
         stability.  In particular, if both ``a`` and ``y`` have a 1.0
@@ -51,6 +87,7 @@ class CrossEntropyCost(object):
         to the correct value (0.0).
 
         """
+        output_activations.append(a)
         return np.sum(np.nan_to_num(-y*np.log(a)-(1-y)*np.log(1-a)))
 
     @staticmethod
@@ -62,6 +99,7 @@ class CrossEntropyCost(object):
 
         """
         return (a-y)
+
 
 
 #### Main Network class
@@ -122,8 +160,17 @@ class Network(object):
 
     def feedforward(self, a):
         """Return the output of the network if ``a`` is input."""
+        l = 0
         for b, w in zip(self.biases, self.weights):
-            a = sigmoid(np.dot(w, a)+b)
+            if l == self.num_layers - 2 and self.cost == LogLikelihoodCost:
+                #print "feedfwd: calculating softmax, layer",l
+                a = softmax(np.dot(w, a)+b)
+                #print "a: softmax",type(a),a
+            else:
+                #print "feedfwd: calculating sigmoid, layer",l
+                a = sigmoid(np.dot(w, a)+b)
+                #print "a: sigmoid",type(a),a
+            l += 1
         return a
 
     def SGD(self, training_data, epochs, mini_batch_size, eta,
@@ -154,6 +201,7 @@ class Network(object):
         """
         if evaluation_data: n_data = len(evaluation_data)
         n = len(training_data)
+        global output_activations,train_or_eval
         evaluation_cost, evaluation_accuracy = [], []
         training_cost, training_accuracy = [], []
         for j in xrange(epochs):
@@ -166,26 +214,30 @@ class Network(object):
                     mini_batch, eta, lmbda, len(training_data))
             print "Epoch %s training complete" % j
             if monitor_training_cost:
+                train_or_eval = "train"
                 cost = self.total_cost(training_data, lmbda)
                 training_cost.append(cost)
                 print "Cost on training data: {}".format(cost)
             if monitor_training_accuracy:
+                train_or_eval = "train"
                 accuracy = self.accuracy(training_data, convert=True)
                 training_accuracy.append(accuracy)
                 print "Accuracy on training data: {} / {}".format(
                     accuracy, n)
             if monitor_evaluation_cost:
+                train_or_eval = "eval"
                 cost = self.total_cost(evaluation_data, lmbda, convert=True)
                 evaluation_cost.append(cost)
                 print "Cost on evaluation data: {}".format(cost)
             if monitor_evaluation_accuracy:
+                train_or_eval = "eval"
                 accuracy = self.accuracy(evaluation_data)
                 evaluation_accuracy.append(accuracy)
                 print "Accuracy on evaluation data: {} / {}".format(
                     self.accuracy(evaluation_data), n_data)
             print
         return evaluation_cost, evaluation_accuracy, \
-            training_cost, training_accuracy
+            training_cost, training_accuracy, output_activations
 
     def update_mini_batch(self, mini_batch, eta, lmbda, n):
         """Update the network's weights and biases by applying gradient
@@ -214,14 +266,27 @@ class Network(object):
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
         # feedforward
-        activation = x
+        activation = x    #input layer activation is equal to the input
         activations = [x] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
+        l = 0
+        #print "num_biases:",len(self.biases)
         for b, w in zip(self.biases, self.weights):
+
             z = np.dot(w, activation)+b
             zs.append(z)
-            activation = sigmoid(z)
+
+            if l == self.num_layers - 2 and self.cost == LogLikelihoodCost:
+                #print "feedfwd in def backprop: calculating softmax, layer",l
+                activation = softmax(z)
+            else:
+                #print "feedfwd in def backprop: calculating sigmoid, layer",l
+                activation = sigmoid(z)
+
+            l += 1
+
             activations.append(activation)
+
         # backward pass
         delta = (self.cost).delta(zs[-1], activations[-1], y)
         nabla_b[-1] = delta
@@ -285,10 +350,14 @@ class Network(object):
             cost += self.cost.fn(a, y)/len(data)
         cost += 0.5*(lmbda/len(data))*sum(
             np.linalg.norm(w)**2 for w in self.weights)
+        
+        #print 'cost', type(cost), cost
+
         return cost
 
     def save(self, filename):
         """Save the neural network to the file ``filename``."""
+        global output_activations
         data = {"sizes": self.sizes,
                 "weights": [w.tolist() for w in self.weights],
                 "biases": [b.tolist() for b in self.biases],
@@ -326,6 +395,12 @@ def vectorized_result(j):
 def sigmoid(z):
     """The sigmoid function."""
     return 1.0/(1.0+np.exp(-z))
+
+#https://gist.github.com/stober/1946926
+def softmax(z):
+    e_z = np.exp(z - np.max(z))
+    out = e_z / e_z.sum()
+    return out
 
 def sigmoid_prime(z):
     """Derivative of the sigmoid function."""

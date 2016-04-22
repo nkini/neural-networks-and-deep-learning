@@ -53,9 +53,10 @@ def run_network(filename, num_epochs, training_set_size=1000, lmbda=0.0):
     random.seed(12345678)
     np.random.seed(12345678)
     training_data, validation_data, test_data = mnist_loader.load_data_wrapper()
-    net = network2.Network([784, 30, 10], cost=network2.CrossEntropyCost())
+    #net = network2.Network([784, 30, 10], cost=network2.CrossEntropyCost)
+    net = network2.Network([784, 30, 10], cost=network2.LogLikelihoodCost)
     net.large_weight_initializer()
-    test_cost, test_accuracy, training_cost, training_accuracy \
+    test_cost, test_accuracy, training_cost, training_accuracy, output_activations \
         = net.SGD(training_data[:training_set_size], num_epochs, 10, 0.5,
                   evaluation_data=test_data, lmbda = lmbda,
                   monitor_evaluation_cost=True, 
@@ -63,7 +64,17 @@ def run_network(filename, num_epochs, training_set_size=1000, lmbda=0.0):
                   monitor_training_cost=True, 
                   monitor_training_accuracy=True)
     f = open(filename, "w")
-    json.dump([test_cost, test_accuracy, training_cost, training_accuracy], f)
+    '''
+    print "test_cost",type(test_cost),test_cost
+    print
+    print "test_accuracy",type(test_accuracy), test_accuracy
+    print
+    print "training_cost",type(training_cost), training_cost
+    print 
+    print "training_accuracy",type(training_accuracy), training_cost
+    print
+    '''
+    json.dump([test_cost, test_accuracy, training_cost, training_accuracy, output_activations], f)
     f.close()
 
 def make_plots(filename, num_epochs, 
@@ -75,9 +86,10 @@ def make_plots(filename, num_epochs,
     """Load the results from ``filename``, and generate the corresponding
     plots. """
     f = open(filename, "r")
-    test_cost, test_accuracy, training_cost, training_accuracy \
+    test_cost, test_accuracy, training_cost, training_accuracy, output_activations \
         = json.load(f)
     f.close()
+    print "len output_activations",len(output_activations)
     plot_training_cost(training_cost, num_epochs, training_cost_xmin)
     plot_test_accuracy(test_accuracy, num_epochs, test_accuracy_xmin)
     plot_test_cost(test_cost, num_epochs, test_cost_xmin)
