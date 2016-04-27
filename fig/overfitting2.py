@@ -125,13 +125,13 @@ def plot_accuracies(training_accuracy, test_accuracy, training_size, testing_siz
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(np.arange(0, num_epochs), 
-            [100.0*accuracy/training_size 
-             for accuracy in training_accuracy[0:num_epochs]],
-            color='r', label="Training" )
-    ax.plot(np.arange(0, num_epochs), 
             [accuracy*100.0/testing_size 
              for accuracy in test_accuracy[0:num_epochs]],
             color='b', label="Testing" )
+    ax.plot(np.arange(0, num_epochs), 
+            [100.0*accuracy/training_size 
+             for accuracy in training_accuracy[0:num_epochs]],
+            color='r', label="Training" )
     ax.set_xlim([0, num_epochs])
     ax.grid(True)
     ax.set_xlabel('Epoch')
