@@ -370,7 +370,7 @@ class Network(object):
         #for x,y in results:
         #    print "x:",x,"y:",y
         #    input()
-        return sum(int(x == y) for (x, y) in results)
+        return sum(int(round(x) == y) for (x, y) in results)
 
     def total_cost(self, data, lmbda, convert=False):
         """Return the total cost for the data set ``data``.  The flag

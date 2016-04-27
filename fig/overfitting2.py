@@ -31,13 +31,14 @@ def main(filename, num_epochs,
     ``lmbda`` is the regularization parameter.  The other parameters
     set the epochs at which to start plotting on the x axis.
     """
-    run_network(filename, num_epochs, training_set_size, lmbda, size=[1,3,1],cost=network2.QuadraticCost)
+    test_size = run_network(filename, num_epochs, training_set_size, lmbda, size=[1,3,1],cost=network2.QuadraticCost)
     make_plots(filename, num_epochs, 
                test_accuracy_xmin=0,
                training_cost_xmin=0,
                test_cost_xmin=0, 
                training_accuracy_xmin=0,
-               training_set_size=training_set_size)
+               training_set_size=training_set_size,
+               testing_set_size=test_size)
                        
 def run_network(filename, num_epochs, training_set_size=1000, lmbda=0.0, size=[1,3,1],cost=network2.QuadraticCost):
     """Train the network for ``num_epochs`` on ``training_set_size``
@@ -53,9 +54,9 @@ def run_network(filename, num_epochs, training_set_size=1000, lmbda=0.0, size=[1
     training_data, validation_data, test_data = mnist_loader.load_data_wrapper_step()
     net = network2.Network(size, cost=cost)
     #net.large_weight_initializer()
-    print "train_data: ", len(training_data)
-    print "val_data: ", len(validation_data)
-    print "test_data: ",len(test_data)
+    #print "train_data: ", len(training_data)
+    #print "val_data: ", len(validation_data)
+    #print "test_data: ",len(test_data)
     test_cost, test_accuracy, training_cost, training_accuracy, output_activations \
         =   net.SGD(training_data=training_data[:training_set_size], epochs=num_epochs, mini_batch_size=10, eta=0.5, lmbda = lmbda, evaluation_data=test_data,
             monitor_evaluation_cost=True,
@@ -75,28 +76,69 @@ def run_network(filename, num_epochs, training_set_size=1000, lmbda=0.0, size=[1
     '''
     json.dump([test_cost, test_accuracy, training_cost, training_accuracy, output_activations], f)
     f.close()
+    return len(test_data)
 
 def make_plots(filename, num_epochs, 
                training_cost_xmin=200, 
                test_accuracy_xmin=200, 
                test_cost_xmin=0, 
                training_accuracy_xmin=0,
-               training_set_size=1000):
+               training_set_size=1000,
+               testing_set_size=1000):
     """Load the results from ``filename``, and generate the corresponding
     plots. """
     f = open(filename, "r")
     test_cost, test_accuracy, training_cost, training_accuracy, output_activations \
         = json.load(f)
     f.close()
-    print "len output_activations",len(output_activations)
-    plot_training_cost(training_cost, num_epochs, training_cost_xmin)
-    plot_test_accuracy(test_accuracy, num_epochs, test_accuracy_xmin)
-    plot_test_cost(test_cost, num_epochs, test_cost_xmin)
-    plot_training_accuracy(training_accuracy, num_epochs, 
-                           training_accuracy_xmin, training_set_size)
-    plot_overlay(test_accuracy, training_accuracy, num_epochs,
-                 min(test_accuracy_xmin, training_accuracy_xmin),
-                 training_set_size)
+    #print "len output_activations",len(output_activations)
+    #plot_training_cost(training_cost, num_epochs, training_cost_xmin)
+    #plot_test_accuracy(test_accuracy, num_epochs, test_accuracy_xmin)
+    #plot_test_cost(test_cost, num_epochs, test_cost_xmin)
+    #plot_training_accuracy(training_accuracy, num_epochs, 
+    #                       training_accuracy_xmin, training_set_size)
+
+    #plot_overlay(test_accuracy, training_accuracy, num_epochs,0 
+    #             training_set_size)
+
+    plot_costs(training_cost, test_cost, num_epochs)
+    plot_accuracies(training_accuracy, test_accuracy, training_set_size, testing_set_size, num_epochs)
+
+def plot_costs(training_cost, test_cost, num_epochs):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(np.arange(0, num_epochs), 
+            training_cost[:num_epochs],
+            color='r', label='Training')
+    ax.plot(np.arange(0, num_epochs), 
+            test_cost[:num_epochs],
+            color='b', label='Testing')
+    ax.set_xlim([0, num_epochs])
+    ax.grid(True)
+    ax.set_xlabel('Epoch')
+    ax.set_title('Cost on the training and testing data')
+    plt.legend(loc="upper right")
+    plt.show()
+    
+
+def plot_accuracies(training_accuracy, test_accuracy, training_size, testing_size, num_epochs):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(np.arange(0, num_epochs), 
+            [100.0*accuracy/training_size 
+             for accuracy in training_accuracy[0:num_epochs]],
+            color='r', label="Training" )
+    ax.plot(np.arange(0, num_epochs), 
+            [accuracy*100.0/testing_size 
+             for accuracy in test_accuracy[0:num_epochs]],
+            color='b', label="Testing" )
+    ax.set_xlim([0, num_epochs])
+    ax.grid(True)
+    ax.set_xlabel('Epoch')
+    ax.set_title('Accuracy (%) on training and test data')
+    plt.legend(loc="upper right")
+    plt.show()
+
 
 def plot_training_cost(training_cost, num_epochs, training_cost_xmin):
     fig = plt.figure()
@@ -110,6 +152,7 @@ def plot_training_cost(training_cost, num_epochs, training_cost_xmin):
     ax.grid(True)
     ax.set_xlabel('Epoch')
     ax.set_title('Cost on the training data')
+    plt.legend(loc="upper right")
     plt.show()
 
 def plot_test_accuracy(test_accuracy, num_epochs, test_accuracy_xmin):
