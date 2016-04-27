@@ -75,6 +75,36 @@ def load_data_wrapper():
     test_data = zip(test_inputs, te_d[1])
     return (training_data, validation_data, test_data)
 
+def load_data_wrapper_parabola():
+    data = cPickle.load(open('parabola-data.pkl','rb'))
+    l = len(data)
+    tr_d, va_d, te_d = data[:l//2],data[l//2:(l//2)+(l//4)],data[(l//2)+(l//4):]
+    training_inputs = [np.reshape(x[0],(1, 1)) for x in tr_d]
+    training_results = [np.reshape(y[1], (1,1)) for y in tr_d]
+    training_data = zip(training_inputs, training_results)
+    validation_inputs = [np.reshape(x[0], (1, 1)) for x in va_d]
+    validation_results = [np.reshape(y[1], (1,1)) for y in va_d]
+    validation_data = zip(validation_inputs, validation_results)
+    test_inputs = [np.reshape(x[0], (1, 1)) for x in te_d]
+    test_results = [np.reshape(y[1], (1,1)) for y in te_d]
+    test_data = zip(test_inputs, test_results)
+    return (training_data, validation_data, test_data)
+
+def load_data_wrapper_step():
+    data = cPickle.load(open('step-data.pkl','rb'))
+    l = len(data)
+    tr_d, va_d, te_d = data[:l//2],data[l//2:(l//2)+(l//4)],data[(l//2)+(l//4):]
+    training_inputs = [np.reshape(x[0],(1, 1)) for x in tr_d]
+    training_results = [np.reshape(y[1], (1,1)) for y in tr_d]
+    training_data = zip(training_inputs, training_results)
+    validation_inputs = [np.reshape(x[0], (1, 1)) for x in va_d]
+    validation_results = [np.reshape(y[1], (1,1)) for y in va_d]
+    validation_data = zip(validation_inputs, validation_results)
+    test_inputs = [np.reshape(x[0], (1, 1)) for x in te_d]
+    test_results = [np.reshape(y[1], (1,1)) for y in te_d]
+    test_data = zip(test_inputs, test_results)
+    return (training_data, validation_data, test_data)
+
 def vectorized_result(j):
     """Return a 10-dimensional unit vector with a 1.0 in the jth
     position and zeroes elsewhere.  This is used to convert a digit

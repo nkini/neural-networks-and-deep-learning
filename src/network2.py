@@ -41,6 +41,24 @@ class QuadraticCost(object):
         """Return the error delta from the output layer."""
         return (a-y) * sigmoid_prime(z)
 
+class QuadraticCost2(object):
+    '''For use with the identity function in the output layer'''
+
+    @staticmethod
+    def fn(a, y):
+        """Return the cost associated with an output ``a`` and desired output
+        ``y``.
+
+        """
+        return 0.5*np.linalg.norm(a-y)**2
+
+    @staticmethod
+    def delta(z, a, y):
+        """Return the error delta from the output layer."""
+        #print "QuadraticCost2 called"
+        #print "a",a
+        #print "y",y
+        return (a-y)
 
 
 class LogLikelihoodCost(object):
@@ -119,7 +137,7 @@ class Network(object):
         self.num_layers = len(sizes)
         self.sizes = sizes
         self.default_weight_initializer()
-        self.cost=cost
+        self.cost = cost
 
     def default_weight_initializer(self):
         """Initialize each weight using a Gaussian distribution with mean 0
@@ -134,6 +152,7 @@ class Network(object):
         layers.
 
         """
+        print "default_weight_initializer was called"
         self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
         self.weights = [np.random.randn(y, x)/np.sqrt(x)
                         for x, y in zip(self.sizes[:-1], self.sizes[1:])]
@@ -154,6 +173,7 @@ class Network(object):
         instead.
 
         """
+        print "large_weight_initializer was called"
         self.biases = [np.random.randn(y, 1) for y in self.sizes[1:]]
         self.weights = [np.random.randn(y, x)
                         for x, y in zip(self.sizes[:-1], self.sizes[1:])]
@@ -166,6 +186,8 @@ class Network(object):
                 #print "feedfwd: calculating softmax, layer",l
                 a = softmax(np.dot(w, a)+b)
                 #print "a: softmax",type(a),a
+            elif l == self.num_layers - 2 and self.cost == QuadraticCost2:
+                a  = identity(np.dot(w, a)+b)
             else:
                 #print "feedfwd: calculating sigmoid, layer",l
                 a = sigmoid(np.dot(w, a)+b)
@@ -201,6 +223,7 @@ class Network(object):
         """
         if evaluation_data: n_data = len(evaluation_data)
         n = len(training_data)
+        print "len training_data",n
         global output_activations,train_or_eval
         evaluation_cost, evaluation_accuracy = [], []
         training_cost, training_accuracy = [], []
@@ -220,13 +243,13 @@ class Network(object):
                 print "Cost on training data: {}".format(cost)
             if monitor_training_accuracy:
                 train_or_eval = "train"
-                accuracy = self.accuracy(training_data, convert=True)
+                accuracy = self.accuracy(training_data, convert=False)
                 training_accuracy.append(accuracy)
                 print "Accuracy on training data: {} / {}".format(
                     accuracy, n)
             if monitor_evaluation_cost:
                 train_or_eval = "eval"
-                cost = self.total_cost(evaluation_data, lmbda, convert=True)
+                cost = self.total_cost(evaluation_data, lmbda, convert=False)
                 evaluation_cost.append(cost)
                 print "Cost on evaluation data: {}".format(cost)
             if monitor_evaluation_accuracy:
@@ -234,7 +257,7 @@ class Network(object):
                 accuracy = self.accuracy(evaluation_data)
                 evaluation_accuracy.append(accuracy)
                 print "Accuracy on evaluation data: {} / {}".format(
-                    self.accuracy(evaluation_data), n_data)
+                   accuracy, n_data)
             print
         return evaluation_cost, evaluation_accuracy, \
             training_cost, training_accuracy, output_activations
@@ -250,6 +273,10 @@ class Network(object):
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
         for x, y in mini_batch:
+            #print type(x)
+            #print x
+            #print type(y)
+            #print y
             delta_nabla_b, delta_nabla_w = self.backprop(x, y)
             nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
@@ -279,6 +306,9 @@ class Network(object):
             if l == self.num_layers - 2 and self.cost == LogLikelihoodCost:
                 #print "feedfwd in def backprop: calculating softmax, layer",l
                 activation = softmax(z)
+            elif l == self.num_layers - 2 and self.cost == QuadraticCost2:
+                activation  = identity(z)
+                #print "in the if for QuadraticCost2, a = ",a
             else:
                 #print "feedfwd in def backprop: calculating sigmoid, layer",l
                 activation = sigmoid(z)
@@ -288,6 +318,7 @@ class Network(object):
             activations.append(activation)
 
         # backward pass
+        #print "y:",y
         delta = (self.cost).delta(zs[-1], activations[-1], y)
         nabla_b[-1] = delta
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
@@ -300,6 +331,8 @@ class Network(object):
         for l in xrange(2, self.num_layers):
             z = zs[-l]
             sp = sigmoid_prime(z)
+            #print delta
+            #print self.weights[-l+1].transpose()
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
@@ -329,11 +362,14 @@ class Network(object):
 
         """
         if convert:
-            results = [(np.argmax(self.feedforward(x)), np.argmax(y))
+            results = [(self.feedforward(x), np.argmax(y))
                        for (x, y) in data]
         else:
-            results = [(np.argmax(self.feedforward(x)), y)
+            results = [(self.feedforward(x), y)
                         for (x, y) in data]
+        #for x,y in results:
+        #    print "x:",x,"y:",y
+        #    input()
         return sum(int(x == y) for (x, y) in results)
 
     def total_cost(self, data, lmbda, convert=False):
@@ -396,12 +432,20 @@ def sigmoid(z):
     """The sigmoid function."""
     return 1.0/(1.0+np.exp(-z))
 
+def sigmoid_prime(z):
+    """Derivative of the sigmoid function."""
+    return sigmoid(z)*(1-sigmoid(z))
+
 #https://gist.github.com/stober/1946926
 def softmax(z):
     e_z = np.exp(z - np.max(z))
     out = e_z / e_z.sum()
     return out
 
-def sigmoid_prime(z):
-    """Derivative of the sigmoid function."""
-    return sigmoid(z)*(1-sigmoid(z))
+def identity(z):
+    '''Activation is the same as z'''
+    return z
+
+def identity_prime(z):
+    '''Derivative of the identity function'''
+    return 1
